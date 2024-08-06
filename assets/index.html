@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Leaflet Routing Machine Example</title>
     <meta charset="utf-8">
@@ -13,10 +12,8 @@
         }
     </style>
 </head>
-
 <body>
     <div id="map"></div>
-
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
     <script>
@@ -27,13 +24,28 @@
         }).addTo(map);
 
         L.Routing.control({
-            waypoints: [
-                L.latLng(57.74, 11.94),
-                L.latLng(57.6792, 11.949)
-            ],
+            waypoints: [],
             routeWhileDragging: true
         }).addTo(map);
+
+        // Handle messages from React Native
+        window.addEventListener('message', function(event) {
+            var data = event.data;
+            if (data && data.latitude && data.longitude) {
+                var userLocation = L.latLng(data.latitude, data.longitude);
+                map.setView(userLocation, 13);
+
+                // Update waypoints
+                var routingControl = L.Routing.control({
+                    waypoints: [
+                        userLocation,
+                        // destination point
+                        [55.062641, 39.291354]
+                    ],
+                    routeWhileDragging: true
+                }).addTo(map);
+            }
+        });
     </script>
 </body>
-
 </html>
