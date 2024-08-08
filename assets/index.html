@@ -1,51 +1,114 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Leaflet Routing Machine Example</title>
+    <title>Leaflet Pedestrian Routing</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch/dist/geosearch.css" />
     <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
         #map {
-            height: 600px;
+            height: 100vh;
+            width: 100vw;
         }
     </style>
 </head>
+
 <body>
     <div id="map"></div>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-geosearch/dist/bundle.min.js"></script>
+
     <script>
+        // Initialize the map
         var map = L.map('map').setView([51.505, -0.09], 13);
 
+        // Add OpenStreetMap tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        L.Routing.control({
+        // Initialize the routing control with a pedestrian profile using OSRM
+        var routingControl = L.Routing.control({
             waypoints: [],
+            router: new L.Routing.OSRMv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
+                profile: 'foot', // Use the pedestrian profile
+            }),
             routeWhileDragging: true
         }).addTo(map);
 
-        // Handle messages from React Native
-        window.addEventListener('message', function(event) {
-            var data = event.data;
-            if (data && data.latitude && data.longitude) {
-                var userLocation = L.latLng(data.latitude, data.longitude);
+        // Add geosearch control to the map with Russian language support
+        const provider = new window.GeoSearch.OpenStreetMapProvider({
+            params: {
+                'accept-language': 'ru', // Use Russian language for geocoding results
+            }
+        });
+
+        const searchControl = new window.GeoSearch.GeoSearchControl({
+            provider: provider,
+            style: 'bar',
+            showMarker: true,
+            autoClose: true,
+            retainZoomLevel: false,
+            searchLabel: 'Введите адрес или место', // Russian search label
+            keepResult: true,
+        });
+
+        map.addControl(searchControl);
+
+        // Cache for user location
+        let userLocation = null;
+
+        // Function to update route with current location and destination
+        function updateRoute(userLocation, destination) {
+            routingControl.setWaypoints([
+                userLocation,
+                destination
+            ]);
+
+            map.setView(destination, 13);
+        }
+
+        // Event listener for updating routing waypoints based on search results
+        map.on('geosearch/showlocation', function (result) {
+            var destination = L.latLng(result.location.y, result.location.x);
+
+            // Update the routing waypoints with the new destination
+            if (userLocation) {
+                updateRoute(userLocation, destination);
+            } else {
+                alert("Не удалось определить текущее местоположение.");
+            }
+        });
+
+        // Handle messages from React Native to update user location
+        window.addEventListener('message', function (event) {
+            if (event.data && event.data.latitude && event.data.longitude) {
+                userLocation = L.latLng(event.data.latitude, event.data.longitude);
                 map.setView(userLocation, 13);
 
-                // Update waypoints
-                var routingControl = L.Routing.control({
-                    waypoints: [
-                        userLocation,
-                        // destination point
-                        [55.062641, 39.291354]
-                    ],
-                    routeWhileDragging: true
-                }).addTo(map);
+                var currentWaypoints = routingControl.getWaypoints();
+                if (currentWaypoints[1] && currentWaypoints[1].latLng) {
+                    updateRoute(userLocation, currentWaypoints[1].latLng);
+                }
             }
         });
     </script>
 </body>
+
 </html>

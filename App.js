@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { WebView } from 'react-native-webview';
-import Constants from 'expo-constants';
 import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
 
@@ -10,28 +9,38 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      // Request permission to access location
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.error('Permission to access location was denied');
         return;
       }
 
-      let { coords } = await Location.getCurrentPositionAsync({});
+      // Get the current location with high accuracy
+      let { coords } = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest, // Set accuracy to highest for using both GPS and GLONASS
+      });
       setLocation(coords);
       setLoading(false);
     })();
   }, []);
 
+  // Inject JavaScript to post message with the user's location
   const injectJavaScript = `
     window.postMessage(${JSON.stringify(location)}, '*');
   `;
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
   }
 
   return (
     <WebView
+      style={styles.container}
       javaScriptEnabled={true}
       startInLoadingState={true}
       scrollEnabled={false}
@@ -48,6 +57,10 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: Constants.statusBarHeight,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
