@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert, TextInput, Button, Text, FlatList, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Alert, TextInput, FlatList, TouchableOpacity, ScrollView, Text, Image } from 'react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import axios from 'axios';
 import * as Location from 'expo-location';
+import { Svg, Path } from 'react-native-svg';
 
 export default function App() {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
@@ -12,8 +13,8 @@ export default function App() {
   const [address, setAddress] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [markers, setMarkers] = useState([
-    { latitude: 0, longitude: 0 }, // Placeholder for user's location
-    { latitude: 0, longitude: 0 }, // Placeholder for destination
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 0 },
   ]);
 
   // Ref for MapView to control the map
@@ -23,19 +24,17 @@ export default function App() {
     (async () => {
       try {
         setLoading(true);
-        // Request permission to access location
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           setError('Permission to access location was denied');
           return;
         }
 
-        // Watch user's location continuously
         await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 10000, // Update every 10 seconds
-            distanceInterval: 50, // Update every 50 meters
+            timeInterval: 10000,
+            distanceInterval: 50,
           },
           (location) => {
             const userLocation = {
@@ -43,9 +42,9 @@ export default function App() {
               longitude: location.coords.longitude,
             };
 
-            setMarkers([userLocation, markers[1]]); // Update starting point
+            setMarkers([userLocation, markers[1]]);
             reverseGeocodeLocation(userLocation);
-            // Center map on user location
+
             mapRef.current.animateToRegion({
               ...userLocation,
               latitudeDelta: 0.01,
@@ -70,7 +69,6 @@ export default function App() {
 
   const reverseGeocodeLocation = async (location) => {
     try {
-      // Fetch address based on user's coordinates
       const response = await axios.get(
         `https://nominatim.openstreetmap.org/reverse?lat=${location.latitude}&lon=${location.longitude}&format=json`
       );
@@ -118,7 +116,6 @@ export default function App() {
     setDestination(text);
     if (text.length > 2) {
       try {
-        // Fetch suggestions based on input
         const response = await axios.get(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=5`
         );
@@ -137,38 +134,14 @@ export default function App() {
       latitude: parseFloat(suggestion.lat),
       longitude: parseFloat(suggestion.lon),
     };
-    setMarkers([markers[0], destinationLocation]); // Update destination
+    setMarkers([markers[0], destinationLocation]);
     setDestination(suggestion.display_name);
-    setSuggestions([]); // Clear suggestions
+    setSuggestions([]);
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter destination"
-          onChangeText={handleDestinationInput}
-          value={destination}
-        />
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item) => item.place_id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.suggestionItem}
-              onPress={() => handleSelectSuggestion(item)}
-            >
-              <Text>{item.display_name}</Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
-
-      {address ? <Text style={styles.address}>Your Location: {address}</Text> : null}
-
-      {loading && <ActivityIndicator size="large" color="#0000ff" />}
-
+      {/* MapView */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -195,6 +168,81 @@ export default function App() {
           />
         )}
       </MapView>
+
+      {/* Search Bar and Buttons */}
+      <View style={styles.topBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search"
+          onChangeText={handleDestinationInput}
+          value={destination}
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item) => item.place_id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.suggestionItem}
+              onPress={() => handleSelectSuggestion(item)}
+            >
+              <Text>{item.display_name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+
+      {/* User Location Address */}
+      {address ? <Text style={styles.address}>Your Location: {address}</Text> : null}
+
+      {/* Loading Indicator */}
+      {loading && <ActivityIndicator size="large" color="#0000ff" />}
+
+      {/* Floating Buttons */}
+      <View style={styles.floatingButtons}>
+        <TouchableOpacity style={styles.navigationButton}>
+          <Image
+            style={styles.tinyLogo}
+            source={require('./assets/UI/geo.png')}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navigationButton}>
+          <Image
+            style={styles.tinyLogo}
+            source={require('./assets/UI/strelka.png')}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <Svg height="100" width="100%" viewBox="0 0 100 100" style={styles.bottomNavShape}>
+        <Path d="M320.035 0H221.014C215.905 0 211.242 2.75273 208.605 7.14546C203.561 15.5382 194.391 21.1818 183.968 21.1818H159.549C149.125 21.1818 139.955 15.5382 134.912 7.14546C132.274 2.75636 127.608 0 122.503 0H23.4846C10.5685 0 0 10.6073 0 23.5709C0 36.5345 10.5685 47.1418 23.4846 47.1418H320.035C332.952 47.1418 343.52 36.5345 343.52 23.5709C343.52 10.6073 332.952 0 320.035 0Z" fill="white"/>
+
+        </Svg>
+        <View style={styles.bottomNavButtons}>
+          <TouchableOpacity style={styles.navButton}>
+            <Image
+              style={styles.tinyLogo}
+              source={require('./assets/UI/settings.png')}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navButtonCenter}>
+            <Image
+              style={styles.homeIcon}
+              source={require('./assets/UI/settings.png')}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.navButton}>
+            <Image
+              style={styles.tinyLogo}
+              source={require('./assets/UI/settings.png')}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -202,32 +250,131 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  inputContainer: {
-    padding: 10,
-    backgroundColor: 'white',
-    zIndex: 1,
-  },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    paddingHorizontal: 5,
-    marginBottom: 10,
-  },
-  suggestionItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'lightgray',
-  },
-  address: {
-    padding: 10,
-    backgroundColor: 'white',
-    fontSize: 16,
-    zIndex: 1,
+    backgroundColor: '#f0f0f0',
   },
   map: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
+    zIndex: 0,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 40,
+    left: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  searchInput: {
+    flex: 1,
+    height: 50,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+  },
+  inputContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 10,
+    right: 10,
+    zIndex: 2,
+  },
+  suggestionItem: {
+    padding: 15,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  address: {
+    position: 'absolute',
+    top: 160,
+    left: 10,
+    right: 10,
+    zIndex: 2,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 5,
+  },
+  floatingButtons: {
+    position: 'absolute',
+    bottom: 180,
+    right: 10,
+    flexDirection: 'column',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  navigationButton: {
+    backgroundColor: '#fff',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  bottomNav: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  bottomNavShape: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+  },
+  bottomNavButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '90%',
+    position: 'absolute',
+    bottom: 20,
+    alignItems: 'center',
+  },
+  navButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  navButtonCenter: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  homeIcon: {
+    width: 35,
+    height: 35,
   },
 });
